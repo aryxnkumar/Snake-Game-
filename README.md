@@ -17,7 +17,7 @@ A Python-based Snake game with interactive gameplay, increasing difficulty, and 
 ## 🎮 How to Play
 1. Clone this repository or download the ZIP.
    ```bash
-   git clone https://github.com/<aryxnkumar>/Snake-Game.git
+   git clone https://github.com/aryxnkumar/Snake-Game.git
 2. Make sure Python is installed on your system.
 
 3. Navigate to the project folder and run:
