@@ -21,7 +21,7 @@ A Python-based Snake game with interactive gameplay, increasing difficulty, and 
 2. Make sure Python is installed on your system.
 
 3. Navigate to the project folder and run:
-  python main.py
+   python main.py
 4. Use arrow keys to move the snake and eat apples.
 5. Avoid crashing into walls or the snake itself. Try to beat your high score!
 
