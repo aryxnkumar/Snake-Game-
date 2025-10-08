@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Advanced Snake — GitHub Page Ready</title>
+  <style>
+    :root{--bg:#0f1724;--panel:#0b1220;--accent:#22c55e;--muted:#94a3b8;--card:#0b1220}
+    *{box-sizing:border-box;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{margin:0;background:linear-gradient(180deg,#071021 0%, #081424 100%);color:#e6eef8;display:flex;align-items:center;justify-content:center;height:100vh}
+    .wrap{width:min(920px,96vw);display:grid;grid-template-columns:1fr 320px;gap:20px}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));padding:16px;border-radius:12px;box-shadow:0 6px 30px rgba(2,6,23,0.6);}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+    h1{font-size:18px;margin:0}
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+    #gameCanvas{width:100%;height:calc(100vh - 120px);background:linear-gradient(135deg,#071733,#052036);border-radius:8px;display:block}
+    .controls{display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;gap:8px}
+    select,input[type=range],button{width:100%;padding:8px;border-radius:8px;border:0;background:#071422;color:#dff5e1}
+    .small{font-size:13px;color:var(--muted)}
+    .stats{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+    .stat{display:flex;justify-content:space-between;font-size:14px}
+    .btn{cursor:pointer;background:linear-gradient(90deg,#1f6feb,#5ec8ff);color:#021024;border:0;padding:10px;border-radius:10px;font-weight:600}
+    .muted{color:var(--muted)}
+    footer.small{font-size:12px;color:var(--muted);margin-top:8px}
+    @media(max-width:900px){.wrap{grid-template-columns:1fr;}.card{padding:12px}.controls{order:2}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card" style="display:flex;flex-direction:column;gap:12px;">
+      <header>
+        <div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(90deg,#0a2533,#07283c);display:flex;align-items:center;justify-content:center;font-weight:700;color:#6ef7b4">S</div>
+        <div>
+          <h1>Advanced Snake — Play & Embed</h1>
+          <p class="lead">Classic snake with modes, speeds, obstacles, touch controls, and local high scores.</p>
+        </div>
+      </header>
+
+      <canvas id="gameCanvas" width="640" height="640"></canvas>
+
+      <div class="small muted">Controls: Arrow keys or WASD. On mobile: swipe. Space = Pause. R = Restart.</div>
+      <footer class="small muted">Tip: Save this file as <code>index.html</code> in your GitHub repo to host via GitHub Pages.</footer>
+    </div>
+
+    <aside class="card controls">
+      <div>
+        <label class="small">Mode</label>
+        <select id="modeSelect">
+          <option value="classic">Classic — walls kill</option>
+          <option value="endless">Endless — wrap edges</option>
+          <option value="speedrun">Speed Run — faster growth</option>
+          <option value="obstacles">Obstacles — blocks on map</option>
+          <option value="reverse">Reverse Controls — for challenge</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="small">Speed (1–10)</label>
+        <input id="speedRange" type="range" min="1" max="10" value="5">
+      </div>
+
+      <div class="row">
+        <button id="startBtn" class="btn">Start</button>
+        <button id="pauseBtn" class="btn" style="background:linear-gradient(90deg,#ffb86b,#ff7a7a)">Pause</button>
+      </div>
+
+      <div class="row">
+        <button id="restartBtn" class="btn" style="background:linear-gradient(90deg,#b389ff,#6dd3ff)">Restart</button>
+        <button id="muteBtn" class="btn" style="background:linear-gradient(90deg,#94a3ff,#7ef5c6)">Toggle Sound</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><span>Score</span><strong id="score">0</strong></div>
+        <div class="stat"><span>Length</span><strong id="length">1</strong></div>
+        <div class="stat"><span>High Score</span><strong id="highscore">0</strong></div>
+        <div class="stat"><span>Mode</span><strong id="modeLabel">Classic</strong></div>
+      </div>
+
+      <div>
+        <label class="small">Theme</label>
+        <select id="themeSelect">
+          <option value="neon">Neon</option>
+          <option value="retro">Retro</option>
+          <option value="matrix">Matrix</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="small">Grid Size</label>
+        <select id="gridSelect">
+          <option value="20">20 x 20 (default)</option>
+          <option value="25">25 x 25</option>
+          <option value="15">15 x 15</option>
+        </select>
+      </div>
+
+      <div class="small muted">Mobile friendly: swipe to play. High scores saved per mode using localStorage.</div>
+    </aside>
+  </div>
+
+<script>
+// Advanced Snake — single file implementation
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let grid = 20; // default cells per row
+  let cellSize = Math.floor(canvas.width / grid);
+
+  // UI elements
+  const scoreEl = document.getElementById('score');
+  const lengthEl = document.getElementById('length');
+  const highscoreEl = document.getElementById('highscore');
+  const modeLabel = document.getElementById('modeLabel');
+  const modeSelect = document.getElementById('modeSelect');
+  const speedRange = document.getElementById('speedRange');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const themeSelect = document.getElementById('themeSelect');
+  const gridSelect = document.getElementById('gridSelect');
+  const muteBtn = document.getElementById('muteBtn');
+
+  let state = 'stopped'; // 'running','paused'
+  let soundOn = true;
+
+  // Game state
+  let snake = [{x:10,y:10}];
+  let dir = {x:1,y:0};
+  let pendingDir = null;
+  let food = null;
+  let obstacles = [];
+  let score = 0;
+  let highscore = 0;
+  let speed = 5; // 1..10, higher = faster
+  let accumulator = 0;
+  let lastTime = 0;
+  let stepInterval = 120; // ms per step, recalculated
+
+  // Load highscore per mode
+  function loadHighScore(){
+    const key = 'snake_high_' + modeSelect.value;
+    const hs = parseInt(localStorage.getItem(key) || '0',10);
+    highscore = isNaN(hs)?0:hs;
+    highscoreEl.textContent = highscore;
+  }
+
+  // Save highscore
+  function saveHighScore(){
+    const key = 'snake_high_' + modeSelect.value;
+    if(score > highscore){
+      localStorage.setItem(key, String(score));
+      highscore = score;
+      highscoreEl.textContent = highscore;
+    }
+  }
+
+  function resetGame(){
+    grid = parseInt(gridSelect.value,10);
+    cellSize = Math.floor(canvas.width / grid);
+    snake = [{x:Math.floor(grid/2), y:Math.floor(grid/2)}];
+    dir = {x:1,y:0}; pendingDir = null;
+    score = 0; accumulator = 0; lastTime = performance.now();
+    obstacles = [];
+    if(modeSelect.value === 'obstacles') createObstacles( Math.max(3, Math.floor(grid/6)) );
+    placeFood(); updateUI();
+  }
+
+  function createObstacles(n){
+    obstacles = [];
+    while(obstacles.length < n){
+      const p = {x:rand(0,grid-1), y:rand(0,grid-1)};
+      if(!occupied(p) && !same(p, food)) obstacles.push(p);
+    }
+  }
+
+  function rand(a,b){ return Math.floor(Math.random()*(b-a+1))+a }
+  function same(a,b){ return a && b && a.x===b.x && a.y===b.y }
+  function occupied(p){ return snake.some(s=>s.x===p.x && s.y===p.y) || obstacles.some(o=>o.x===p.x && o.y===p.y) }
+
+  function placeFood(){
+    let tries=0;
+    do{
+      food = {x:rand(0,grid-1), y:rand(0,grid-1)};
+      tries++;
+      if(tries>1000) break;
+    }while(occupied(food));
+  }
+
+  function updateUI(){
+    scoreEl.textContent = score;
+    lengthEl.textContent = snake.length;
+    modeLabel.textContent = modeSelect.options[modeSelect.selectedIndex].text;
+  }
+
+  function setSpeedFromUI(){
+    speed = parseInt(speedRange.value,10);
+    // Map speed 1..10 to ms per step (lower ms = faster)
+    const base = 200; // slow
+    const fast = 40; // fastest
+    stepInterval = Math.round(base - ( (speed-1)/9 )*(base-fast));
+    // tweak by mode
+    if(modeSelect.value === 'speedrun') stepInterval = Math.round(stepInterval * 0.6);
+  }
+
+  // Input handling
+  window.addEventListener('keydown', e=>{
+    if(e.key===' '){ togglePause(); e.preventDefault(); return; }
+    if(e.key.toLowerCase()==='r'){ startGame(true); return; }
+    const keyMap = {
+      ArrowUp:[0,-1], ArrowDown:[0,1], ArrowLeft:[-1,0], ArrowRight:[1,0],
+      w:[0,-1], s:[0,1], a:[-1,0], d:[1,0]
+    };
+    const k = keyMap[e.key] || keyMap[e.key.toLowerCase()];
+    if(k){
+      const nd = {x:k[0], y:k[1]};
+      handleDirection(nd);
+      e.preventDefault();
+    }
+  });
+
+  function handleDirection(nd){
+    // reverse controls mode inverts directions
+    const rev = (modeSelect.value === 'reverse');
+    if(rev){ nd.x *= -1; nd.y *= -1; }
+    // prevent 180-degree reversal
+    if(nd.x === -dir.x && nd.y === -dir.y) return;
+    pendingDir = nd;
+  }
+
+  // touch / swipe support
+  let touchStart = null;
+  canvas.addEventListener('touchstart', e=>{ const t=e.changedTouches[0]; touchStart={x:t.clientX,y:t.clientY,time:Date.now()}; });
+  canvas.addEventListener('touchend', e=>{
+    const t=e.changedTouches[0]; if(!touchStart) return;
+    const dx = t.clientX - touchStart.x; const dy = t.clientY - touchStart.y;
+    if(Math.hypot(dx,dy) < 20) return; // tap
+    if(Math.abs(dx) > Math.abs(dy)) handleDirection({x: dx>0?1:-1, y:0}); else handleDirection({x:0,y: dy>0?1:-1});
+    touchStart = null;
+  });
+
+  // Game step
+  function step(){
+    // apply pending direction
+    if(pendingDir){ dir = pendingDir; pendingDir = null; }
+    const head = {x:snake[0].x + dir.x, y:snake[0].y + dir.y};
+
+    // wrapping for endless
+    if(modeSelect.value === 'endless'){
+      head.x = (head.x + grid) % grid; head.y = (head.y + grid) % grid;
+    }
+
+    // collisions
+    if(modeSelect.value !== 'endless'){
+      if(head.x < 0 || head.y < 0 || head.x >= grid || head.y >= grid){ gameOver(); return; }
+    }
+    // obstacle hit
+    if(obstacles.some(o=>o.x===head.x && o.y===head.y)){ gameOver(); return; }
+    // self collision
+    if(snake.some(s=>s.x===head.x && s.y===head.y)){ gameOver(); return; }
+
+    snake.unshift(head);
+
+    // ate food?
+    if(same(head, food)){
+      playBeep(800,60); // eat sound
+      score += (modeSelect.value==='speedrun')?5:1;
+      // speedrun grows faster
+      if(modeSelect.value === 'speedrun'){
+        // drop a couple of foods (simulate bonus growth)
+        for(let i=0;i<2;i++) placeFood();
+      }
+      placeFood();
+    } else {
+      snake.pop();
+    }
+
+    // increase difficulty: every 5 points, small speed boost
+    if(score && score % 5 === 0){ /*optional*/ }
+
+    updateUI();
+    saveHighScore();
+  }
+
+  function gameOver(){
+    playBeep(200,250);
+    state = 'stopped';
+    startBtn.textContent = 'Start';
+    alert('Game over! Score: ' + score);
+    saveHighScore();
+  }
+
+  // Rendering
+  function draw(){
+    // background
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // scale to grid
+    const w = canvas.width; const h = canvas.height;
+
+    // draw grid background
+    for(let y=0;y<grid;y++){
+      for(let x=0;x<grid;x++){
+        const gx = x*cellSize, gy = y*cellSize;
+        // subtle cells
+        // ctx.fillStyle = ( (x+y)&1 )? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.02)';
+        // ctx.fillRect(gx,gy,cellSize,cellSize);
+      }
+    }
+
+    // draw obstacles
+    for(const o of obstacles){ drawRect(o.x,o.y, cellSize, '#6b7280'); }
+
+    // draw food
+    if(food) drawRect(food.x, food.y, cellSize, themeColor('food'));
+
+    // draw snake
+    for(let i=snake.length-1;i>=0;i--){
+      const s = snake[i];
+      const shade = i===0?0.95: Math.max(0.3, 0.95 - i/(snake.length+6));
+      drawRect(s.x,s.y,cellSize, themeColor('snake', shade));
+      // eye on head
+      if(i===0){ drawEyes(s.x,s.y); }
+    }
+
+    // HUD overlay
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(6,6,140,34);
+    ctx.fillStyle = '#dff5e1'; ctx.font='14px system-ui';
+    ctx.fillText('Score: ' + score, 14,28);
+  }
+
+  function drawRect(cx,cy,size, fill){
+    ctx.fillStyle = fill;
+    const x = cx*cellSize + 1; const y = cy*cellSize + 1; const s = size - 2;
+    roundRect(ctx, x,y,s,s, Math.max(2, s*0.12)); ctx.fill();
+  }
+
+  function drawEyes(cx,cy){
+    const x = cx*cellSize, y = cy*cellSize;
+    const r = Math.max(2, cellSize*0.08);
+    ctx.fillStyle = '#021024';
+    if(dir.x === 1){ ctx.fillRect(x + cellSize*0.6, y + cellSize*0.28, r, r); ctx.fillRect(x + cellSize*0.6, y + cellSize*0.58, r, r); }
+    else if(dir.x === -1){ ctx.fillRect(x + cellSize*0.15, y + cellSize*0.28, r, r); ctx.fillRect(x + cellSize*0.15, y + cellSize*0.58, r, r); }
+    else if(dir.y === 1){ ctx.fillRect(x + cellSize*0.28, y + cellSize*0.6, r, r); ctx.fillRect(x + cellSize*0.58, y + cellSize*0.6, r, r); }
+    else { ctx.fillRect(x + cellSize*0.28, y + cellSize*0.12, r, r); ctx.fillRect(x + cellSize*0.58, y + cellSize*0.12, r, r); }
+  }
+
+  function themeColor(part, shade=1){
+    const theme = themeSelect.value;
+    if(theme==='neon'){
+      if(part==='snake') return `rgba(${30*shade},${200*shade},${110*shade},1)`;
+      if(part==='food') return 'rgba(255,80,90,1)';
+    }
+    if(theme==='retro'){
+      if(part==='snake') return `rgba(${50*shade+150},${40*shade+100},${30*shade},1)`;
+      if(part==='food') return 'rgba(250,200,60,1)';
+    }
+    if(theme==='matrix'){
+      if(part==='snake') return `rgba(40,255,80,${0.6+0.4*shade})`;
+      if(part==='food') return 'rgba(180,255,120,1)';
+    }
+    return '#22c55e';
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+
+  // animation loop
+  function loop(now){
+    if(!lastTime) lastTime = now;
+    const dt = now - lastTime; lastTime = now;
+    if(state === 'running'){
+      accumulator += dt;
+      while(accumulator >= stepInterval){ step(); accumulator -= stepInterval; }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // control buttons
+  startBtn.addEventListener('click', ()=> startGame());
+  pauseBtn.addEventListener('click', ()=> togglePause());
+  restartBtn.addEventListener('click', ()=> startGame(true));
+  muteBtn.addEventListener('click', ()=>{ soundOn = !soundOn; muteBtn.textContent = soundOn? 'Toggle Sound' : 'Muted'; });
+  modeSelect.addEventListener('change', ()=>{ loadHighScore(); resetGame(); setSpeedFromUI(); });
+  speedRange.addEventListener('input', ()=>{ setSpeedFromUI(); });
+  themeSelect.addEventListener('change', ()=>{});
+  gridSelect.addEventListener('change', ()=>{ resetGame(); });
+
+  function startGame(forceRestart=false){
+    if(state === 'running' && !forceRestart) return;
+    resetGame(); state = 'running'; startBtn.textContent = 'Playing';
+    setSpeedFromUI(); loadHighScore();
+  }
+
+  function togglePause(){
+    if(state === 'running'){ state='paused'; pauseBtn.textContent='Resume'; }
+    else if(state === 'paused'){ state='running'; pauseBtn.textContent='Pause'; }
+    else { startGame(true); }
+  }
+
+  // sound util (tiny beep using WebAudio)
+  const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+  function playBeep(freq,dur){ if(!soundOn || !audioCtx) return; const o = audioCtx.createOscillator(); const g = audioCtx.createGain(); o.type='sine'; o.frequency.value = freq; g.gain.value = 0.03; o.connect(g); g.connect(audioCtx.destination); o.start(); setTimeout(()=>{ o.stop(); }, dur); }
+
+  // helpers
+  function randEmptyCell(){
+    let tries=0; while(tries++<2000){ const p={x:rand(0,grid-1),y:rand(0,grid-1)}; if(!occupied(p)) return p; } return {x:0,y:0};
+  }
+
+  // init
+  function init(){
+    canvas.width = 640; canvas.height = 640; // fixed for crisp grid
+    resetGame(); setSpeedFromUI(); loadHighScore(); requestAnimationFrame(loop);
+  }
+
+  // Save highscore on page hide
+  window.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveHighScore(); });
+
+  init();
+})();
+</script>
+</body>
+</html>
